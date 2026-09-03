@@ -1,0 +1,362 @@
+name: php-agent-devdescription: >-  Token-efficient, bug-resistant PHP development workflow for AI coding  agents. Covers Laravel, Symfony, WordPress, CodeIgniter and plain PHP.  Use when starting any PHP coding task or project, when creating agent  context files (AGENTS.md, PLAN.md, DECISIONS.md), when exploring a PHP  codebase, or when the user mentions saving tokens, reducing costs, or  improving quality on a PHP project.
+PHP Agent Development — token-efficient workflow
+
+Core principle: every token either moves the task forward or preventsfuture waste. PHP projects contain the largest context traps of anylanguage (vendor/, framework caches, WordPress core) — hygiene mattersmore here than anywhere.
+Phase 0 — BOOTSTRAP (once per project)
+
+    Detect the stack before anything else:
+
+Signal	Stack
+composer.json → laravel/framework	Laravel
+composer.json → symfony/framework-bundle	Symfony
+wp-config.php / wp-settings.php exists	WordPress
+composer.json → codeigniter4/framework	CodeIgniter 4
+none of the above	plain PHP
+
+Command sets per stack: references/php-commands.md.
+
+    Create AGENTS.md in the repo root — the project brain every sessionreads first. Copy the matching template fromreferences/agents-md-templates.md. Keep ≤ 150 lines; update wheneverarchitecture changes.
+
+    Mark the no-read zone (the #1 PHP token sink) in AGENTS.md hardrules and in .claudeignore / deny rules where supported:vendor/ · node_modules/ · composer.lock · storage/framework/ ·bootstrap/cache/ · var/cache/ · public/build/ · dist/ ·_ide_helper*.php · .phpstorm.meta.php · *.min.js · *.min.css · *.map ·uploads/ · WordPress: wp-admin/ · wp-includes/ · wp-content/uploads/(WP core: grep one specific symbol only when debugging a hook;never bulk-read, never edit.)
+
+    Confirm test-one / lint / typecheck commands actually run; recordthem in AGENTS.md.
+
+Phase 1 — PLAN
+
+Non-trivial tasks (touch > 1 file or > 50 lines) get PLAN.md first(references/plan-templates.md):
+
+    one-sentence goal + checkable acceptance criteria
+    target files — found via AGENTS.md map or route:list, NOT exploration
+    ordered atomic steps
+    DB plan: new migration vs editing old (executed migrations are immutable)
+    out-of-scope list (blocks gold-plating)
+
+Trivial fixes (typo, text string, one-line config) skip planning.
+Phase 2 — EXECUTE (PHP context economy)
+
+    Locate with grep, read ranges only:grep -rn --include="*.php" "functionName" app/ → sed -n '40,120p' fileNever cat whole large files.
+    Get an API surface almost free:grep -n "public function" app/Services/Foo.php prints the interface.
+    Explore with commands, not file reads (near-zero token cost):php artisan route:list · php artisan model:show User ·php bin/console debug:router · composer show vendor/pkg ·composer why pkg — full list in references/php-commands.md.
+    Vendor code: read only the docblock/signature of the class beingused, never implementation internals. Prefer reflection in tinker:(new ReflectionClass(Foo::class))->getMethods().
+    Never edit: vendor/ (fork/upgrade instead), framework core,generated files, already-executed migrations, composer.lock by hand.
+    DB schema changes → fresh migration; record its name in DECISIONS.md.
+    After config/route/env changes → clear caches before testing:php artisan optimize:clear (or bin/console cache:clear).Stale caches cause phantom bugs and wasted debug loops.
+    Surgical edits: change only the lines that change. One class per file(PSR-4) keeps files small — keep them that way.
+    Subagents for multi-file exploration; main context keeps only summaries.
+
+Phase 3 — VERIFY (targeted, not exhaustive)
+
+    Tests covering the change only:vendor/bin/phpunit --filter testMethodName · vendor/bin/pest --filter name· php artisan test --filter=Name. Full suite only before commit/PR.
+    Static analysis on changed paths (seconds, zero tokens, real bugs):vendor/bin/phpstan analyse <changed paths> --level=8 (or Psalm).
+    Style on dirty files only: vendor/bin/pint --dirty (or phpcbf).
+    php -l <file> on every changed file — free fatal-error check.
+    Smoke test: start server, curl the one affected endpoint.
+    Grep for debug leftovers before commit:grep -rn "dd(\|dump(\|var_dump(\|ray(" app/
+    Done = every acceptance criterion checked one by one.
+
+Fix failures immediately — context is warm; a later debug session reloadseverything.
+Phase 4 — PERSIST
+
+    Update AGENTS.md (status, map changes, new commands).
+    Mark PLAN.md steps; log deviations.
+    DECISIONS.md one-liners: non-obvious choices, new composer deps,migration names, hook changes (WP).
+    Conventional commit: feat|fix|refactor: what + why — git history isfree persistent context.
+    New task → fresh session; resume from files, not from memory.
+
+Universal rules
+
+    Consult order: AGENTS.md → PLAN.md → DECISIONS.md → code.
+    Never redo what progress files say is done.
+    migrate:fresh / db:wipe / migrate:reset = data loss → explicituser approval, dev environments only.
+    Never commit .env or wp-config.php with real credentials (.env.exampleis the pattern).
+    New code: strict_types + full typing (see references/php-conventions.md).
+    Ambiguous → ask. Confident → act. Never silently guess architecture.
+
+📄 references/php-commands.md
+PHP command cheat sheet (per stack)
+Plain PHP (works everywhere)
+
+    Free fatal check: php -l path/File.php
+    Dev server: php -S localhost:8000 -t public
+    Composer: composer install · composer dump-autoload -o ·composer show vendor/pkg (version + description) · composer why pkg· composer outdated --direct
+    PHPUnit: vendor/bin/phpunit --filter=testName tests/Unit/FooTest.php(also --testsuite=Unit)
+    PHPStan: vendor/bin/phpstan analyse src --level=8
+    Psalm: vendor/bin/psalm src
+    Find a class: grep -rn --include="*.php" "class Foo" src/
+
+Laravel
+
+    Run: php artisan serve
+    Routes: php artisan route:list --path=api/users
+    Explore (REPL): php artisan tinker
+        Schema::getColumnListing('users') — schema without reading migrations
+        (new ReflectionClass(User::class))->getMethods()
+    Model map: php artisan model:show User
+    Tests: php artisan test --filter=Name · --group=api ·parallel: php artisan test --parallel
+    Migrations: php artisan make:migration add_x_to_y_table ·php artisan migrate · php artisan migrate:rollback --step=1· DESTRUCTIVE: migrate:fresh --seed — approval only
+    Caches: php artisan optimize:clear (config+routes+views+events)
+    Queue: php artisan queue:restart after Job changes · queue:failed
+    Logs: tail -n 50 storage/logs/laravel.log
+    Style (changed files only): vendor/bin/pint --dirty
+    Types: vendor/bin/phpstan analyse app --level=8 (larastan)
+
+Symfony
+
+    php bin/console list · php bin/console debug:router ·debug:router <name> · debug:container --parameter=x
+    php bin/console cache:clear --env=dev
+    Doctrine migrations: doctrine:migrations:diff · doctrine:migrations:migrate
+    Tests: php bin/phpunit --filter testName
+    Serve: symfony serve (Symfony CLI) or php -S localhost:8000 -t public
+
+WordPress (wp-cli)
+
+    Site: wp plugin list · wp theme list · wp option get siteurl
+    Data: wp search-replace 'old' 'new' --dry-run · wp db check
+    Reflection: wp eval 'var_dump(class_exists("WC_Order"));'
+    Debug: WP_DEBUG=true in wp-config.php → wp-content/debug.log
+    Assets: npm run build / npm run dev (theme/plugin package.json)
+
+CodeIgniter 4
+
+    php spark serve · php spark routes · php spark migrate
+    Tests: vendor/bin/phpunit
+
+The golden habit
+
+Always target: one test, one class, one file. Whole suites only pre-PR.
+📄 references/php-conventions.md
+PHP conventions — bug prevention = token prevention
+
+Every bug avoided removes a whole debug loop (read, hypothesize, edit,retest) — the most expensive token sequence there is. Apply to NEW code;never mass-refactor old code unprompted.
+Typing (PHP 8.1+)
+
+    declare(strict_types=1); in every new file
+    Type every property, parameter and return — mixed only when truly dynamic
+    readonly properties/classes for value objects
+    Backed enums instead of string/int constant soup
+    Nullable only where the domain allows, never "just in case"
+    Dedicated DTOs at boundaries instead of array-shape juggling
+
+Structure
+
+    PSR-4: one class per file, namespace mirrors path
+    final by default; inheritance only by design
+    Files < 300 lines, methods < 30 lines (small files are cheap to re-read)
+    Layers: Controller (thin: validate + delegate) → Action/Service →Model/Repository
+    Constructor property promotion; inject dependencies; no service locator
+    Throw typed exceptions; never return mixed "error or value"
+    Early returns; no deep nesting
+
+Laravel specifics
+
+    FormRequest for validation — never inline in controllers
+    Business logic in Actions/Services; controllers ≤ ~30 lines
+    Eloquent: query scopes for repeated filters; with() eager loads to kill N+1
+    Route model binding over manual findOrFail
+    Migrations reversible (down()); one concern per migration
+    Factories + RefreshDatabase in tests; never manual SQL seeding
+    Values via config() — never scattered hardcoded env values
+
+WordPress specifics
+
+    Prefix ALL global symbols with the theme/plugin slug:mytheme_render_card(), Mytheme_Meta_Box, mytheme_after_content
+    Output escaping non-negotiable: esc_html esc_attr esc_url wp_kses_post· input: sanitize_text_field absint · SQL: $wpdb->prepare()
+    Register hooks in ONE bootstrap file; keep a hook map in AGENTS.md
+    Never modify core / parent theme / other plugins — hooks only
+    Nonces for any state change: wp_nonce_field() / check_admin_referer()
+    No raw $_GET/$_POST/$_SERVER in templates — sanitize and validate first
+    i18n-ready: __('text', 'mytheme')
+
+Hard NO list
+
+    committing dd() dump() var_dump() ray() (grep before commit)
+    editing an executed migration
+    @ error suppression · eval() · extract() · die() flow control
+    editing vendor/ to "quick-fix" a package (fork/patch via composer instead)
+    queries in views/templates
+    hardcoded credentials anywhere (env only)
+
+📄 references/agents-md-templates.md
+AGENTS.md templates (pick ONE matching the detected stack)
+A) Laravel
+AGENTS.md — [Project] (Laravel 11)
+Purpose
+
+[1–2 sentences: what this app does, for whom.]
+Stack
+
+PHP 8.3 · Laravel 11 · MySQL 8 · Redis (cache+queue) · Pest · Larastan · Pint
+Map & flow
+
+    routes/web.php, routes/api.php — route table
+    app/Http/Controllers/* — thin controllers (validate → delegate → respond)
+    app/Http/Requests/* — form validation
+    app/Actions/* — business logic units (one action = one job)
+    app/Models/* — Eloquent models + query scopes
+    app/Services/* — external integrations (payment, sms, mail)
+    app/Jobs/, app/Events/, app/Listeners/ — async side
+    database/migrations|factories|seeders/
+    tests/Feature/, tests/Unit/ (Pest)
+    Flow: request → middleware → FormRequest → Controller → Action → Model→ MySQL · events → Redis queue → Job → listener
+
+Commands
+
+    bootstrap: composer install && cp .env.example .env && php artisan key:generate && php artisan migrate --seed
+    serve: php artisan serve
+    test all: php artisan test
+    test one: php artisan test --filter=Name
+    style: vendor/bin/pint --dirty
+    types: vendor/bin/phpstan analyse --level=8
+    explore: php artisan route:list / tinker / model:show User
+
+Conventions
+
+strict_types · final classes · DTOs for API payloads · Actions pattern ·singular models, snake_case tables
+Hard rules (NEVER)
+
+    migrate:fresh / db:wipe → user approval, dev DB only
+    never edit vendor/ or any already-committed migration
+    never commit .env; never leave dd()/dump()
+    queue runs on Redis: php artisan queue:restart after Job changes
+    after config/route changes run php artisan optimize:clear
+
+Current status
+
+    done: … · in progress: … (see PLAN.md) · known issues: …
+
+B) WordPress
+AGENTS.md — [Project] (WordPress 6.x)
+Purpose
+
+[site/plugin purpose in 1–2 sentences]
+Stack
+
+WordPress 6.x · PHP 8.2 · custom theme mytheme (child of parenttheme)· plugins: ACF Pro, WooCommerce, [ours: mytheme-core]· assets: Vite (npm) · wp-cli available
+Map & flow — WE ONLY TOUCH THE MARKED PATHS
+
+    wp-content/themes/mytheme/ ← OURS
+        functions.php — bootstrap: requires src/, registers hooks
+        src/ — namespaced classes (composer PSR-4)
+        templates/, template-parts/ — output
+        assets/src → built to assets/dist
+    wp-content/plugins/mytheme-core/ ← OURS (CPTs, meta, admin screens)
+    Hook map: [every hook we add: name → file → purpose]
+    Flow: request → WP core → theme functions.php → hooks → template → parts
+
+Commands
+
+    assets: npm run build / npm run dev
+    tests: vendor/bin/phpunit (plugin tests)
+    lint: vendor/bin/phpcs --standard=WordPress
+    wp-cli: wp plugin list · wp option get X · wp search-replace a b --dry-run
+    debug: WP_DEBUG → wp-content/debug.log
+
+Conventions
+
+slug prefix mytheme_ on every function/class/hook/option ·esc_* out, sanitize_* in, $wpdb->prepare for SQL · template-parts overduplicated markup · no jQuery unless already required
+Hard rules (NEVER)
+
+    never edit WP core (wp-admin/, wp-includes/), the parent theme, orthird-party plugins — hooks only
+    never commit uploads/ or wp-config.php with real credentials
+    never raw G​ET/_POST in templates; always nonces on state change
+
+Current status
+
+…
+C) Symfony
+AGENTS.md — [Project] (Symfony 7)
+Purpose · Stack
+
+PHP 8.3 · Symfony 7 · Doctrine ORM · Twig · PHPUnit · PHPStan · PhpCsFixer
+Map & flow
+
+    src/Controller/* — thin controllers
+    src/Service/ (or src/Domain/) — business logic
+    src/Entity/ + src/Repository/ — Doctrine layer
+    config/packages/, config/routes/ · templates/ (Twig) · tests/
+    Flow: request → controller → service → repository → Doctrine → MySQL
+
+Commands
+
+    composer install · symfony serve · cache:clear
+    routes: php bin/console debug:router
+    migrations: php bin/console doctrine:migrations:diff && doctrine:migrations:migrate
+    test one: php bin/phpunit --filter=Name
+    types: vendor/bin/phpstan analyse --level=8
+
+Hard rules (NEVER)
+
+    never edit vendor/ or var/ (regenerated)
+    Doctrine migrations only via bin/console — never edit applied ones
+    never commit .env.local
+
+Current status
+
+…
+D) Plain PHP / micro-framework
+AGENTS.md — [Project]
+Purpose · Stack
+
+PHP 8.x · [Slim 4 / no framework] · PDO · PHPUnit · PHPStan
+Map & flow
+
+    public/index.php — front controller (all requests enter here)
+    src/ — PSR-4 via composer.json
+    src/Controllers/ · src/Domain/ · src/Infrastructure/
+    config/ · tests/ (mirrors src/)
+    Flow: index.php → router → controller → domain → PDO → MySQL
+
+Commands
+
+    composer install · serve: php -S localhost:8000 -t public
+    test one: vendor/bin/phpunit --filter=Name
+    types: vendor/bin/phpstan analyse src --level=8
+
+Conventions
+
+strict_types · final · DTOs · prepared statements everywhere
+Hard rules (NEVER)
+
+    never concatenate SQL; never commit .env; no logic in index.php beyondbootstrap/routing
+
+📄 references/plan-templates.md
+PLAN + DECISIONS templates
+PLAN — [Task name]
+
+Date: YYYY-MM-DD · Goal: [one sentence]
+Acceptance criteria
+
+     [checkable, e.g. "POST /api/users returns 201 with validated body"]
+
+Target files
+
+    modify: app/Actions/CreateUserAction.php — handle()
+    create: database/migrations/2025_01_15_add_role_to_users_table.php
+    read: app/Http/Requests/UserRequest.php — rules() only
+    tests: tests/Feature/CreateUserTest.php
+
+DB plan
+
+new migration add_role_to_users_table (up + down) — rollback-safe
+Steps
+
+     migration + php artisan migrate (dev)
+     extend FormRequest rules
+     Action logic + DTO
+     route/controller wiring
+     write feature test; run filtered: php artisan test --filter=CreateUserTest
+     pint --dirty + phpstan on changed files + commit
+
+Out of scope
+
+    [explicitly excluded items]
+
+Deviations
+
+| step | change | why |
+DECISIONS.md (create once, append forever)
+#	date	decision	why	rejected alternatives
+12	2025-01-15	role as native backed enum	closed domain set	string column + validation (loose)
+13	2025-01-16	new dep: intervention/image	thumbnail pipeline	custom GD code (bug surface)
+
+Rules: every new composer dependency, every migration name, everyarchitectural choice gets a row. Future agents consult this instead ofre-deriving or silently reversing decisions.
