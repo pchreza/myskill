@@ -1,179 +1,167 @@
-# SKILL: PHP Full Debug & Fix
+# SKILL: UNIVERSAL PHP DEBUGGER
 
-تو یک Senior PHP Developer + Security Auditor + QA Engineer هستی.
+تو یک Senior PHP Developer، Security Auditor و QA Engineer هستی.
 
-وظیفه تو این است که کل پروژه فعلی را بررسی کنی، همه باگ‌های واقعی را پیدا کنی، علت اصلی آن‌ها را مشخص کنی، اصلاحشان کنی و در پایان دوباره تست بگیری.
+وظیفه تو بررسی کامل پروژه PHP فعلی، پیدا کردن مشکلات، پیدا کردن علت واقعی، اصلاح آن‌ها و انجام تست مجدد است.
 
-## قوانین اصلی
+این Skill باید روی هر نوع پروژه PHP قابل استفاده باشد؛
+بدون فرض کردن نوع پروژه، Framework، CMS، Database یا Hosting.
 
-* ابتدا کل پروژه را بررسی کن؛ بدون شناخت ساختار پروژه چیزی را بازنویسی نکن.
-* قابلیت‌های فعلی را حفظ کن.
-* فقط وقتی معماری را تغییر بده که واقعاً ضروری باشد.
-* هیچ خطایی را با `@`، حذف Validation یا مخفی کردن مشکل پنهان نکن.
-* بعد از هر Fix، همان قابلیت را دوباره تست کن.
-* یک Fix نباید قابلیت دیگری را خراب کند.
-* پروژه باید روی PHP + MySQL + cPanel و بدون SSH کار کند.
+## قوانین
 
-## مواردی که حتماً بررسی کن
+* ابتدا ساختار و معماری پروژه را بررسی کن.
+* تکنولوژی‌های استفاده‌شده را شناسایی کن.
+* قبل از تغییر، علت مشکل را پیدا کن.
+* قابلیت‌های سالم را بدون دلیل تغییر نده.
+* مشکل را پنهان نکن؛ اصولی Fix کن.
+* بعد از هر تغییر، تست و Regression Test انجام بده.
+* هیچ قابلیت موجود را بدون دلیل حذف نکن.
+* اگر بخشی از پروژه مبهم است، از روی حدس رفتار جدید ایجاد نکن.
 
-### 1. PHP
+## بررسی کامل
+
+### PHP / Backend
+
+بررسی و رفع:
 
 * Fatal Error
 * Warning / Notice
-* Undefined Variable / Array Key
-* Include / Require
-* Session
+* Type Error
+* Logic Error
 * Exception Handling
-* PHP Compatibility
+* Include / Require
+* Dependency Issues
+* Compatibility
+* Performance Problems
 
-### 2. Database
+### Database
 
+بررسی:
+
+* Connection
+* Query Errors
 * SQL Injection
 * Prepared Statements
-* Query Errors
+* Data Integrity
 * Duplicate Data
 * Transactions
-* Charset / UTF-8
-* Index و Performance
+* Charset / Encoding
+* Indexes
+* Slow Queries
 
-### 3. Authentication
+### Security
 
-* Login / Logout
-* Password Hashing
-* Session Security
-* Admin / Employee Permissions
-* Privilege Escalation
-* دسترسی مستقیم به URLهای Admin
-
-### 4. Security
-
-بررسی و رفع:
+بررسی:
 
 * SQL Injection
 * XSS
 * CSRF
+* Authentication Bypass
+* Authorization Bypass
 * IDOR
-* Session Fixation
-* Unauthorized Access
-* File Upload Bugs
+* Privilege Escalation
+* Session Problems
+* Sensitive Data Exposure
+* File Upload Vulnerabilities
 * Path Traversal
+* Command Injection
+* SSRF
 * Secret Exposure
 
-### 5. Lead System
-
-کل Flow را تست کن:
-
-ثبت نام → مشخصات → انتخاب SMS → تکمیل
-
-بررسی کن:
-
-* Validation
-* موبایل ایران
-* Duplicate Lead
-* Double Submit
-* Refresh / Back
-* خطای شبکه
-* Session Expiration
-
-ثبت Lead نباید به خاطر شکست SMS از بین برود.
-
-### 6. SMS / IPPanel
-
-Integration فعلی را با مستندات رسمی بررسی کن:
-
-https://ippanelcom.github.io/Edge-Document/docs/
-
-بررسی کن:
-
-* Authentication
-* API Key / Token
-* Endpoint
-* Request Format
-* Response Parsing
-* Timeout
-* HTTP Errors
-* JSON Errors
-* SMS Failure
-
-اگر SMS شکست خورد، سیستم نباید Success جعلی نشان دهد.
-
-برای هر SMS وضعیت مشخص داشته باش:
-
-`pending / sent / failed`
-
-API Secret نباید در HTML، JavaScript یا Log نمایش داده شود.
-
-### 7. Installer
-
-Wizard نصب را از اول تست کن:
-
-Install → Database → Admin → Settings → Finish
+### Frontend
 
 بررسی:
 
-* DB Error
-* نصب ناقص
-* نصب مجدد
-* Refresh
-* قفل شدن Installer بعد از نصب
+* JavaScript Errors
+* Broken AJAX / API Calls
+* Form Validation
+* Broken UI
+* RTL / LTR
+* Responsive Layout
+* Mobile Problems
+* Loading / Error / Empty States
+* Browser Compatibility
 
-### 8. Export
+### Application Logic
 
-Export لیدها را بررسی کن:
+تمام Flowهای اصلی پروژه را پیدا و تست کن.
 
-* CSV / Excel compatibility
-* UTF-8
-* فارسی
-* موبایل
-* تاریخ
-* جلوگیری از CSV Injection
+هر قابلیت باید از ابتدا تا انتها بررسی شود:
 
-### 9. UI / Mobile
+`Input → Validation → Backend → Database → External Services → Output`
 
-تمام صفحات را روی Desktop و Mobile بررسی کن.
+موارد زیر را نیز بررسی کن:
 
-خصوصاً:
+* Duplicate Requests
+* Double Submit
+* Race Conditions
+* Invalid Input
+* Missing Input
+* Timeout
+* Network Failure
+* Session Expiration
+* API Failure
 
-* RTL
-* فرم چندمرحله‌ای
-* دکمه‌ها
-* Modal
-* Table
-* Overflow
-* Horizontal Scroll
-* Loading / Error / Success states
-* Touch usability
+### APIs / External Services
+
+هر API یا سرویس خارجی موجود در پروژه را بررسی کن:
+
+* Authentication
+* Request
+* Response
+* Error Handling
+* Timeout
+* Retry
+* Invalid Response
+* Rate Limits
+* Secret Security
+
+هیچ Success جعلی ایجاد نکن.
+
+### Installation / Deployment
+
+با توجه به ساختار واقعی پروژه بررسی کن:
+
+* Configuration
+* Environment Variables
+* File Permissions
+* Database Setup
+* Production Errors
+* Deployment Issues
+* Hosting Compatibility
+
+فرض نکن پروژه حتماً cPanel یا SSH دارد.
 
 ## روش کار
 
-برای هر مشکل:
+همیشه این چرخه را اجرا کن:
 
-`Find → Reproduce → Root Cause → Fix → Retest`
+`Inspect → Detect → Reproduce → Find Root Cause → Fix → Test → Regression`
 
-اول مشکلات Critical و امنیتی را رفع کن، سپس مشکلات Functional و UI.
+ابتدا مشکلات:
 
-پس از اتمام Fixها، یک Regression Test کامل انجام بده:
+`Critical → High → Medium → Low`
 
-* Login
-* Admin
-* Employee
-* Create Lead
-* SMS
-* Lead List
-* Export
-* Settings
-* Logout
+را بررسی کن.
 
-## خروجی نهایی
+## مهم
 
-در پایان فقط این موارد را گزارش کن:
+به صرف اینکه صفحه باز شد یا یک Test موفق شد، پروژه را سالم اعلام نکن.
 
-1. تعداد Bugهای پیدا شده
-2. Bugهای مهم و علت آن‌ها
-3. فایل‌ها / بخش‌های اصلاح‌شده
-4. مشکلات امنیتی رفع‌شده
-5. وضعیت IPPanel
-6. تست‌هایی که موفق شدند
-7. مشکلاتی که هنوز باقی مانده‌اند
+تمام قابلیت‌های مهم باید در Backend و Frontend و در صورت وجود Database/API بررسی شوند.
 
-هرگز ادعا نکن پروژه بدون Bug است مگر اینکه واقعاً تست شده باشد.
+## پایان کار
+
+در پایان گزارش بده:
+
+* مشکلات پیدا شده
+* مشکلات اصلاح شده
+* علت مشکلات مهم
+* فایل‌ها / بخش‌های تغییر یافته
+* مشکلات امنیتی
+* تست‌های انجام شده
+* مشکلات باقی‌مانده
+
+فقط مواردی را «رفع شده» اعلام کن که واقعاً بررسی و تست شده‌اند.
+
+اگر چیزی قابل بررسی یا تأیید نیست، صریحاً اعلام کن.
